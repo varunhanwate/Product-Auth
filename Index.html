@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Authenticity Checker</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background: #f4f7fa; color: #333; }
+        .container { max-width: 800px; margin: 0 auto; background: white; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); padding: 30px; }
+        h1 { text-align: center; color: #2c3e50; margin-bottom: 10px; }
+        .scan-section, .manual-section { margin: 30px 0; padding: 20px; border: 2px dashed #3498db; border-radius: 10px; text-align: center; }
+        video { width: 100%; max-width: 400px; border-radius: 10px; }
+        input[type="text"] { width: 70%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; }
+        button { background: #27ae60; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 16px; margin: 10px; }
+        button:hover { background: #219a52; }
+        #result { margin-top: 20px; padding: 20px; border-radius: 10px; font-size: 18px; font-weight: bold; text-align: center; }
+        .authentic { background: #d4edda; color: #155724; border: 2px solid #c3e6cb; }
+        .fake { background: #f8d7da; color: #721c24; border: 2px solid #f5c6cb; }
+        .loading { background: #fff3cd; color: #856404; }
+        #qrCanvas { display: none; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Product Authenticity Checker</h1>
+        <p style="text-align: center; color: #666;">Scan QR code or enter serial number to verify legitimacy</p>
+
+        <!-- QR Scanner -->
+        <div class="scan-section">
+            <h3>📱 QR Code Scanner</h3>
+            <video id="video" autoplay playsinline></video>
+            <br>
+            <button id="startScan">Start Camera</button>
+            <button id="stopScan" style="display:none;">Stop Camera</button>
+            <canvas id="qrCanvas"></canvas>
+        </div>
+
+        <!-- Manual Entry -->
+        <div class="manual-section">
+            <h3>⌨️ Enter Serial Number</h3>
+            <input type="text" id="serialInput" placeholder="Enter product serial number or QR data" maxlength="50">
+            <br>
+            <button onclick="checkSerial()">Check Authenticity</button>
+        </div>
+
+        <!-- Results -->
+        <div id="result"></div>
+    </div>
+
+    <script>
+        let video = document.getElementById('video');
+        let canvas = document.getElementById('qrCanvas');
+        let ctx = canvas.getContext('2d');
+        let stream = null;
+
+        // Mock API - Replace with your real backend endpoint
+        async function checkAuthenticity(code) {
+            // Simulate API delay
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            
+            // Mock data - Replace with real verification logic
+            const fakeProducts = ['FAKE123456', 'COUNTERFEIT789', 'SUSPICIOUSABC'];
+            const isAuthentic = !fakeProducts.includes(code);
+            
+            return {
+                code: code,
+                authentic: isAuthentic,
+                message: isAuthentic ? 
+                    '✅ Product is AUTHENTIC and genuine!' : 
+                    '❌ Product appears FAKE or tampered!',
+                details: isAuthentic ? 
+                    'Manufacturer: GenuineCorp | Batch: 2026-A | Expires: 2028' : 
+                    'Warning: Serial matches known counterfeit patterns.'
+            };
+        }
+
+        // QR Scanner functions
+        document.getElementById('startScan').onclick = async () => {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                video.srcObject = stream;
+                video.play();
+                document.getElementById('startScan').style.display = 'none';
+                document.getElementById('stopScan').style.display = 'inline';
+                requestAnimationFrame(scanQR);
+            } catch(err) {
+                alert('Camera access denied or not available');
+            }
+        };
+
+        document.getElementById('stopScan').onclick = () => {
+            if (stream) stream.getTracks().forEach(track => track.stop());
+            video.srcObject = null;
+            document.getElementById('startScan').style.display = 'inline';
+            document.getElementById('stopScan').style.display = 'none';
+        };
+
+        function scanQR() {
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0);
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const code = jsQR(imageData.data, imageData.width, imageData.height);
+                if (code) {
+                    checkSerial(code.data);
+                    return; // Stop scanning after success
+                }
+            }
+            if (video.srcObject) requestAnimationFrame(scanQR);
+        }
+
+        // Serial check function
+        async function checkSerial(serial = null) {
+            const code = serial || document.getElementById('serialInput').value.trim();
+            if (!code) {
+                alert('Please enter a serial number or scan QR');
+                return;
+            }
+
+            const resultDiv = document.getElementById('result');
+            resultDiv.className = 'loading';
+            resultDiv.innerHTML = '🔄 Checking authenticity...';
+
+            try {
+                const result = await checkAuthenticity(code);
+                resultDiv.className = result.authentic ? 'authentic' : 'fake';
+                resultDiv.innerHTML = `
+                    <div>${result.message}</div>
+                    <div style="font-size: 14px; margin-top: 10px;">Serial: ${result.code}</div>
+                    <div style="font-size: 14px;">${result.details}</div>
+                    <button onclick="clearResult()" style="margin-top: 10px; background: #3498db;">Check Another</button>
+                `;
+                document.getElementById('serialInput').value = '';
+            } catch(err) {
+                resultDiv.className = 'fake';
+                resultDiv.innerHTML = '❌ Error checking authenticity. Try again.';
+            }
+        }
+
+        function clearResult() {
+            document.getElementById('result').innerHTML = '';
+        }
+
+        // Enter key support
+        document.getElementById('serialInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') checkSerial();
+        });
+    </script>
+</body>
+</html>
