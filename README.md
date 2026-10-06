@@ -16,6 +16,7 @@ Uses the jsQR library for QR-code detection.
 Simulates API verification with a 1.5-second delay.
 
 Provides sample manufacturer, batch, and expiry details.
+
 Technologies Used
 HTML5
 
@@ -24,6 +25,7 @@ CSS3
 JavaScript
 
 Canvas API
+
 
 How to Run
 Option 1: Open Directly
